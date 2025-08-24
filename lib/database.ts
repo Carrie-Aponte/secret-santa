@@ -6,6 +6,16 @@ const APP_STATE_ID = 'aponte-family-2025'
 export class DatabaseService {
 
     static async saveAppState(appState: AppState): Promise<void> {
+    // Skip database operations during build time
+    if (typeof window === 'undefined') {
+      return
+    }
+    
+    if (!supabase) {
+      console.warn('Supabase not configured, skipping database save')
+      return
+    }
+    
     try {
       const { error } = await supabase
         .from('app_states')
@@ -30,6 +40,16 @@ export class DatabaseService {
 
 
   static async loadAppState(): Promise<AppState | null> {
+    // Skip database operations during build time
+    if (typeof window === 'undefined') {
+      return null
+    }
+    
+    if (!supabase) {
+      console.warn('Supabase not configured, returning null')
+      return null
+    }
+    
     try {
       const { data, error } = await supabase
         .from('app_states')
@@ -60,6 +80,16 @@ export class DatabaseService {
 
 
   static async resetAppState(): Promise<void> {
+    // Skip database operations during build time
+    if (typeof window === 'undefined') {
+      return
+    }
+    
+    if (!supabase) {
+      console.warn('Supabase not configured, skipping database reset')
+      return
+    }
+    
     try {
       const { error } = await supabase
         .from('app_states')
