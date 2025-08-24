@@ -9,7 +9,7 @@ import { FAMILY_MEMBERS } from '@/app/features/santa/constants';
 import { 
   initializeAppState, 
   addKnownAssignment, 
-  generateAssignment 
+  generateAssignment
 } from '@/app/features/santa/logic';
 import { DatabaseService } from '@/lib/database';
 
@@ -105,9 +105,16 @@ export default function AssignSantas() {
     }
   };
 
-    const handleManualAssignment = (santaName: string) => {
+    const handleManualAssignment = (santaName: string, isKnownAssignment = false) => {
     if (santaName === userName) {
       setError('You cannot be your own secret santa!');
+      return;
+    }
+
+    // Check if this person is already taken by someone else
+    const isAlreadyTaken = Object.values(appState.assignments).includes(santaName);
+    if (isAlreadyTaken) {
+      setError(`${santaName} is already assigned to someone else. Please choose someone else.`);
       return;
     }
 
@@ -115,7 +122,14 @@ export default function AssignSantas() {
     setAppState(newState);
     setAssignedSanta(santaName);
     setError('');
-    setShowPrivacyWarning(true);
+    
+    if (isKnownAssignment) {
+      // If they already knew their assignment, skip privacy warning and go directly to complete
+      setCurrentStep('complete');
+    } else {
+      // If this is a new assignment, show privacy warning
+      setShowPrivacyWarning(true);
+    }
   };
 
   const handleGenerateSanta = () => {
@@ -237,7 +251,7 @@ export default function AssignSantas() {
             <CardHeader>
               <CardTitle>Hi {userName}!</CardTitle>
               <CardDescription>
-                Do you already know who your secret santa is?
+                Do you already know who you&apos;re buying a Secret Santa gift for?
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -265,9 +279,9 @@ export default function AssignSantas() {
         {currentStep === 'enter-santa' && (
           <Card>
             <CardHeader>
-              <CardTitle>Who is Your Secret Santa?</CardTitle>
+              <CardTitle>Who are you buying a gift for?</CardTitle>
               <CardDescription>
-                Click on the name of the person who is your secret santa.
+                Click on the name of the person you&apos;re buying a Secret Santa gift for.
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -290,11 +304,11 @@ export default function AssignSantas() {
               {error && <p className="text-red-600 text-sm">{error}</p>}
               <div className="space-y-2">
                 <Button 
-                  onClick={() => handleManualAssignment(santaName)} 
+                  onClick={() => handleManualAssignment(santaName, true)} 
                   className="w-full"
                   disabled={!santaName}
                 >
-                  Confirm: {santaName || '...'} is my Secret Santa
+                  Confirm: I&apos;m buying a gift for {santaName || '...'}
                 </Button>
                 <Button variant="outline" onClick={() => setCurrentStep('knows-santa')} className="w-full">
                   ← Go Back

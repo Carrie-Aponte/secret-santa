@@ -73,10 +73,10 @@ export default function Home() {
                   <strong>Step 1:</strong> Everyone clicks &ldquo;Start Assignment Process&rdquo; first
                 </p>
                 <p>
-                  <strong>If you remember your secret santa:</strong> Click on their name to remove them from the available pool
+                  <strong>If you remember your secret santa:</strong> Click on &ldquo;Yes, I know&rdquo;, then click on their name to remove them from the available pool
                 </p>
                 <p>
-                  <strong>If you forgot:</strong> After everyone who remembers has entered their names, click &ldquo;Generate&rdquo; to get a new assignment from whoever is left!
+                  <strong>If you forgot:</strong> After everyone who remembers has entered their names, click &ldquo;No, I forgot&rdquo;, then click on &ldquo;Generate&rdquo; to get a new assignment from whoever is left!
                 </p>
                 <p>
                   <strong>Step 2:</strong> Use &ldquo;Check My Assignment&rdquo; anytime to look up who you&apos;re getting a gift for
