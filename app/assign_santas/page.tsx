@@ -404,7 +404,7 @@ export default function AssignSantas() {
         )}
 
         {/* Admin Controls */}
-        <Card className="mt-8 border-gray-300">
+        {/* <Card className="mt-8 border-gray-300">
           <CardHeader>
             <CardTitle className="text-gray-700">Admin Controls</CardTitle>
           </CardHeader>
@@ -417,7 +417,7 @@ export default function AssignSantas() {
               🗑️ Reset All Assignments
             </Button>
           </CardContent>
-        </Card>
+        </Card> */}
       </div>
     </div>
   );
