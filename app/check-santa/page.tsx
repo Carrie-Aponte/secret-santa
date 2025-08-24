@@ -4,7 +4,6 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { AppState } from '@/app/features/santa/types';
 import { FAMILY_MEMBERS } from '@/app/features/santa/constants';
 import { getAssignment } from '@/app/features/santa/logic';
@@ -17,6 +16,7 @@ export default function CheckSanta() {
   const [error, setError] = useState('');
   const [searched, setSearched] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [showPrivacyWarning, setShowPrivacyWarning] = useState(false);
 
   // Load saved state from database on component mount
   useEffect(() => {
@@ -73,12 +73,12 @@ export default function CheckSanta() {
     if (foundAssignment) {
       setAssignment(foundAssignment);
       setError('');
+      setShowPrivacyWarning(true);
     } else {
       setAssignment(null);
-      setError(`No assignment found for "${userName}". Make sure you've completed the assignment process first.`);
+      setError(`No assignment found for "${userName}". Make sure you&apos;ve completed the assignment process first.`);
+      setSearched(true);
     }
-    
-    setSearched(true);
   };
 
   const resetSearch = () => {
@@ -86,14 +86,15 @@ export default function CheckSanta() {
     setAssignment(null);
     setError('');
     setSearched(false);
+    setShowPrivacyWarning(false);
   };
 
   if (!appState && !error && loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-red-50 to-green-50 p-8">
-        <div className="max-w-2xl mx-auto">
+      <div className="min-h-screen bg-gradient-to-br from-red-50 to-green-50 p-4 sm:p-6 lg:p-8">
+        <div className="max-w-3xl mx-auto">
           <div className="text-center">
-            <h1 className="text-3xl font-bold text-green-800 mb-4">Loading...</h1>
+            <h1 className="text-2xl sm:text-3xl font-bold text-green-800 mb-4">Loading...</h1>
             <p className="text-blue-600">🔄 Loading data from database...</p>
           </div>
         </div>
@@ -102,10 +103,10 @@ export default function CheckSanta() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-red-50 to-green-50 p-8">
-      <div className="max-w-2xl mx-auto">
-        <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-green-800 mb-4">
+    <div className="min-h-screen bg-gradient-to-br from-red-50 to-green-50 p-4 sm:p-6 lg:p-8">
+      <div className="max-w-3xl mx-auto">
+        <div className="text-center mb-6 sm:mb-8">
+          <h1 className="text-2xl sm:text-3xl font-bold text-green-800 mb-4">
             🔍 Check Your Secret Santa
           </h1>
           <Link href="/">
@@ -133,34 +134,79 @@ export default function CheckSanta() {
             <CardHeader>
               <CardTitle>Who are you?</CardTitle>
               <CardDescription>
-                Enter your name exactly as it appears in the family list below
+                Click on your name from the family members below
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="bg-gray-50 p-3 rounded-lg">
-                <p className="text-sm font-medium text-gray-700 mb-2">Family Members:</p>
-                <p className="text-sm text-gray-600">{FAMILY_MEMBERS.join(', ')}</p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                {FAMILY_MEMBERS.map((name) => (
+                  <Button
+                    key={name}
+                    variant={userName === name ? "default" : "outline"}
+                    className={`p-4 h-auto text-left justify-start ${
+                      userName === name ? 'bg-green-600 hover:bg-green-700' : ''
+                    } ${
+                      appState && !appState.assignments[name] ? 'opacity-60' : ''
+                    }`}
+                    onClick={() => setUserName(name)}
+                  >
+                    <div className="flex flex-col items-start">
+                      <span className="font-medium">{name}</span>
+                      {appState && appState.assignments[name] && (
+                        <span className="text-xs opacity-75">✓ Has assignment</span>
+                      )}
+                      {appState && !appState.assignments[name] && (
+                        <span className="text-xs opacity-75">No assignment yet</span>
+                      )}
+                    </div>
+                  </Button>
+                ))}
               </div>
-              <Input
-                placeholder="Enter your name exactly as shown above"
-                value={userName}
-                onChange={(e) => setUserName(e.target.value)}
-                onKeyPress={(e) => e.key === 'Enter' && handleCheckAssignment()}
-              />
               {error && <p className="text-red-600 text-sm">{error}</p>}
-              <Button onClick={handleCheckAssignment} className="w-full">
-                Check My Assignment
+              <Button 
+                onClick={handleCheckAssignment} 
+                className="w-full"
+                disabled={!userName}
+              >
+                Check Assignment for {userName || '...'}
               </Button>
             </CardContent>
           </Card>
         )}
 
-        {searched && assignment && (
+        {showPrivacyWarning && assignment && (
+          <Card className="border-2 border-amber-300 bg-amber-50">
+            <CardHeader>
+              <CardTitle className="text-amber-800">⚠️ Privacy Check!</CardTitle>
+              <CardDescription>
+                Make sure nobody is looking at your screen before revealing your assignment.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="text-center p-6 bg-white rounded-lg border-2 border-amber-200">
+                <p className="text-lg text-gray-600 mb-4">
+                  Make sure nobody is looking!
+                </p>
+                <Button 
+                  onClick={() => {
+                    setShowPrivacyWarning(false);
+                    setSearched(true);
+                  }}
+                  className="bg-green-600 hover:bg-green-700"
+                >
+                  Click here to reveal your Secret Santa
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {searched && assignment && !showPrivacyWarning && (
           <Card className="border-2 border-green-300 bg-green-50">
             <CardHeader>
               <CardTitle className="text-green-800">🎁 Your Secret Santa</CardTitle>
               <CardDescription>
-                Here's who you're getting a gift for!
+                Here&apos;s who you&apos;re getting a gift for!
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -188,7 +234,7 @@ export default function CheckSanta() {
             <CardHeader>
               <CardTitle className="text-yellow-800">❌ No Assignment Found</CardTitle>
               <CardDescription>
-                We couldn't find a secret santa assignment for you
+                We couldn&apos;t find a secret santa assignment for you
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -197,7 +243,7 @@ export default function CheckSanta() {
                 Possible reasons:
               </p>
               <ul className="text-sm text-yellow-600 list-disc list-inside space-y-1">
-                <li>You haven't completed the assignment process yet</li>
+                <li>You haven&apos;t completed the assignment process yet</li>
                 <li>Your name was spelled differently when you made the assignment</li>
                 <li>The assignment data has been reset</li>
               </ul>

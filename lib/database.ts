@@ -1,6 +1,5 @@
 import { supabase } from '@/lib/supabase'
 import { AppState } from '@/app/features/santa/types'
-import { FAMILY_MEMBERS } from '@/app/features/santa/constants'
 
 const APP_STATE_ID = 'aponte-family-2025'
 

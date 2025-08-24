@@ -4,7 +4,6 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { AppState, AssignmentStep } from '@/app/features/santa/types';
 import { FAMILY_MEMBERS } from '@/app/features/santa/constants';
 import { 
@@ -24,6 +23,7 @@ export default function AssignSantas() {
   const [assignedSanta, setAssignedSanta] = useState<string | null>(null);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [showPrivacyWarning, setShowPrivacyWarning] = useState(false);
 
   // Load saved state from database on component mount
   useEffect(() => {
@@ -105,22 +105,7 @@ export default function AssignSantas() {
     }
   };
 
-  const handleEnterKnownSanta = () => {
-    if (!santaName.trim()) {
-      setError('Please enter the name of your secret santa');
-      return;
-    }
-
-    if (!appState.familyMembers.includes(santaName)) {
-      setError('That person is not in the family list');
-      return;
-    }
-
-    if (!appState.availableReceivers.includes(santaName)) {
-      setError('That person has already been assigned as someone\'s secret santa');
-      return;
-    }
-
+    const handleManualAssignment = (santaName: string) => {
     if (santaName === userName) {
       setError('You cannot be your own secret santa!');
       return;
@@ -130,21 +115,21 @@ export default function AssignSantas() {
     setAppState(newState);
     setAssignedSanta(santaName);
     setError('');
-    setCurrentStep('complete');
+    setShowPrivacyWarning(true);
   };
 
   const handleGenerateSanta = () => {
     const { newState, receiver } = generateAssignment(appState, userName);
     
     if (!receiver) {
-      setError('No available people left to assign! This shouldn\'t happen.');
+      setError('No available people left to assign! This shouldn&apos;t happen.');
       return;
     }
 
     setAppState(newState);
     setAssignedSanta(receiver);
     setError('');
-    setCurrentStep('complete');
+    setShowPrivacyWarning(true);
   };
 
   const resetFlow = () => {
@@ -174,10 +159,10 @@ export default function AssignSantas() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-red-50 to-green-50 p-8">
-      <div className="max-w-2xl mx-auto">
-        <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-green-800 mb-4">
+    <div className="min-h-screen bg-gradient-to-br from-red-50 to-green-50 p-4 sm:p-6 lg:p-8">
+      <div className="max-w-3xl mx-auto">
+        <div className="text-center mb-6 sm:mb-8">
+          <h1 className="text-2xl sm:text-3xl font-bold text-green-800 mb-4">
             🎁 Secret Santa Assignment
           </h1>
           {loading && (
@@ -209,23 +194,39 @@ export default function AssignSantas() {
             <CardHeader>
               <CardTitle>Who are you?</CardTitle>
               <CardDescription>
-                Enter your name exactly as it appears in the family list below
+                Click on your name from the family members below
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="bg-gray-50 p-3 rounded-lg">
-                <p className="text-sm font-medium text-gray-700 mb-2">Family Members:</p>
-                <p className="text-sm text-gray-600">{FAMILY_MEMBERS.join(', ')}</p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                {FAMILY_MEMBERS.map((name) => (
+                  <Button
+                    key={name}
+                    variant={userName === name ? "default" : "outline"}
+                    className={`p-4 h-auto text-left justify-start ${
+                      userName === name ? 'bg-green-600 hover:bg-green-700' : ''
+                    } ${
+                      appState.assignments[name] ? 'opacity-50' : ''
+                    }`}
+                    onClick={() => setUserName(name)}
+                    disabled={appState.assignments[name] ? true : false}
+                  >
+                    <div className="flex flex-col items-start">
+                      <span className="font-medium">{name}</span>
+                      {appState.assignments[name] && (
+                        <span className="text-xs opacity-75">Already assigned</span>
+                      )}
+                    </div>
+                  </Button>
+                ))}
               </div>
-              <Input
-                placeholder="Enter your name exactly as shown above"
-                value={userName}
-                onChange={(e) => setUserName(e.target.value)}
-                onKeyPress={(e) => e.key === 'Enter' && handleStartAssignment()}
-              />
               {error && <p className="text-red-600 text-sm">{error}</p>}
-              <Button onClick={handleStartAssignment} className="w-full">
-                Continue
+              <Button 
+                onClick={handleStartAssignment} 
+                className="w-full"
+                disabled={!userName}
+              >
+                Continue as {userName || '...'}
               </Button>
             </CardContent>
           </Card>
@@ -264,26 +265,36 @@ export default function AssignSantas() {
         {currentStep === 'enter-santa' && (
           <Card>
             <CardHeader>
-              <CardTitle>Enter Your Secret Santa</CardTitle>
+              <CardTitle>Who is Your Secret Santa?</CardTitle>
               <CardDescription>
-                Who is your secret santa? This will remove them from the available pool.
+                Click on the name of the person who is your secret santa.
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="bg-gray-50 p-3 rounded-lg">
-                <p className="text-sm font-medium text-gray-700 mb-2">Family Members:</p>
-                <p className="text-sm text-gray-600">{FAMILY_MEMBERS.join(', ')}</p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                {FAMILY_MEMBERS.filter(name => name !== userName).map((name) => (
+                  <Button
+                    key={name}
+                    variant={santaName === name ? "default" : "outline"}
+                    className={`p-4 h-auto text-left justify-start ${
+                      santaName === name ? 'bg-green-600 hover:bg-green-700' : ''
+                    }`}
+                    onClick={() => setSantaName(name)}
+                  >
+                    <div className="flex flex-col items-start">
+                      <span className="font-medium">{name}</span>
+                    </div>
+                  </Button>
+                ))}
               </div>
-              <Input
-                placeholder="Enter their name exactly as shown above"
-                value={santaName}
-                onChange={(e) => setSantaName(e.target.value)}
-                onKeyPress={(e) => e.key === 'Enter' && handleEnterKnownSanta()}
-              />
               {error && <p className="text-red-600 text-sm">{error}</p>}
               <div className="space-y-2">
-                <Button onClick={handleEnterKnownSanta} className="w-full">
-                  Confirm Assignment
+                <Button 
+                  onClick={() => handleManualAssignment(santaName)} 
+                  className="w-full"
+                  disabled={!santaName}
+                >
+                  Confirm: {santaName || '...'} is my Secret Santa
                 </Button>
                 <Button variant="outline" onClick={() => setCurrentStep('knows-santa')} className="w-full">
                   ← Go Back
@@ -303,7 +314,7 @@ export default function AssignSantas() {
             </CardHeader>
             <CardContent className="space-y-4">
               <p className="text-sm text-gray-600">
-                You will be randomly assigned a family member who hasn't been taken yet.
+                You will be randomly assigned a family member who hasn&apos;t been taken yet.
               </p>
               {error && <p className="text-red-600 text-sm">{error}</p>}
               <div className="space-y-2">
@@ -321,12 +332,39 @@ export default function AssignSantas() {
           </Card>
         )}
 
-        {currentStep === 'complete' && assignedSanta && (
+        {showPrivacyWarning && assignedSanta && (
+          <Card className="border-2 border-amber-300 bg-amber-50">
+            <CardHeader>
+              <CardTitle className="text-amber-800">⚠️ Privacy Check!</CardTitle>
+              <CardDescription>
+                Make sure nobody is looking at your screen before revealing your assignment.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="text-center p-6 bg-white rounded-lg border-2 border-amber-200">
+                <p className="text-lg text-gray-600 mb-4">
+                  Make sure nobody is looking!
+                </p>
+                <Button 
+                  onClick={() => {
+                    setShowPrivacyWarning(false);
+                    setCurrentStep('complete');
+                  }}
+                  className="bg-green-600 hover:bg-green-700"
+                >
+                  Click here to reveal your Secret Santa
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {currentStep === 'complete' && assignedSanta && !showPrivacyWarning && (
           <Card className="border-2 border-green-300 bg-green-50">
             <CardHeader>
               <CardTitle className="text-green-800">🎉 Assignment Complete!</CardTitle>
               <CardDescription>
-                Remember this person - they're your secret santa!
+                Remember this person - they&apos;re your secret santa!
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -335,7 +373,7 @@ export default function AssignSantas() {
                 <p className="text-3xl font-bold text-green-800">{assignedSanta}</p>
               </div>
               <p className="text-sm text-green-700 text-center">
-                Don't forget! You can always check this later from the home page.
+                Don&apos;t forget! You can always check this later from the home page.
               </p>
               <div className="space-y-2">
                 <Button onClick={resetFlow} className="w-full">
