@@ -6,16 +6,13 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { AppState, AssignmentStep } from '@/app/features/santa/types';
+import { FAMILY_MEMBERS } from '@/app/features/santa/constants';
 import { 
   initializeAppState, 
   addKnownAssignment, 
   generateAssignment 
 } from '@/app/features/santa/logic';
-
-// Default family members - you can modify this list
-const FAMILY_MEMBERS = [
-  'Rosa', 'Alan', 'Nhic', 'Camila', 'Chris', 'Carrie'
-];
+import { DatabaseService } from '@/lib/database';
 
 export default function AssignSantas() {
   const [appState, setAppState] = useState<AppState>(() => 
@@ -26,28 +23,67 @@ export default function AssignSantas() {
   const [santaName, setSantaName] = useState('');
   const [assignedSanta, setAssignedSanta] = useState<string | null>(null);
   const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
 
-  // Load saved state from localStorage on component mount
+  // Load saved state from database on component mount
   useEffect(() => {
-    const saved = localStorage.getItem('secretSantaState');
-    if (saved) {
+    const loadData = async () => {
+      setLoading(true);
       try {
-        const parsedState = JSON.parse(saved);
-        setAppState(parsedState);
-      } catch (e) {
-        console.error('Failed to parse saved state:', e);
+        const savedState = await DatabaseService.loadAppState();
+        if (savedState) {
+          setAppState(savedState);
+        }
+      } catch (error) {
+        console.error('Failed to load data from database:', error);
+        setError('Failed to load data. Using offline mode.');
+        // Fallback to localStorage
+        const localData = localStorage.getItem('secretSantaState');
+        if (localData) {
+          try {
+            const parsedState = JSON.parse(localData);
+            setAppState(parsedState);
+          } catch (e) {
+            console.error('Failed to parse local data:', e);
+          }
+        }
+      } finally {
+        setLoading(false);
       }
-    }
+    };
+
+    loadData();
   }, []);
 
-  // Save state to localStorage whenever it changes
+  // Save state to database whenever it changes
   useEffect(() => {
-    localStorage.setItem('secretSantaState', JSON.stringify(appState));
+    const saveData = async () => {
+      try {
+        await DatabaseService.saveAppState(appState);
+        // Also save to localStorage as backup
+        localStorage.setItem('secretSantaState', JSON.stringify(appState));
+      } catch (error) {
+        console.error('Failed to save to database:', error);
+        // Fallback to localStorage only
+        localStorage.setItem('secretSantaState', JSON.stringify(appState));
+      }
+    };
+
+    // Only save if we have assignments (avoid saving initial empty state)
+    if (Object.keys(appState.assignments).length > 0) {
+      saveData();
+    }
   }, [appState]);
 
   const handleStartAssignment = () => {
     if (!userName.trim()) {
       setError('Please enter your name');
+      return;
+    }
+
+    // Validate that the user is in the family members list
+    if (!FAMILY_MEMBERS.includes(userName)) {
+      setError(`"${userName}" is not in the family list. Please use the exact name from the list above.`);
       return;
     }
     
@@ -119,12 +155,21 @@ export default function AssignSantas() {
     setError('');
   };
 
-  const clearAllData = () => {
+  const clearAllData = async () => {
     if (confirm('Are you sure you want to reset all assignments? This cannot be undone.')) {
-      const newState = initializeAppState(FAMILY_MEMBERS);
-      setAppState(newState);
-      localStorage.removeItem('secretSantaState');
-      resetFlow();
+      setLoading(true);
+      try {
+        await DatabaseService.resetAppState();
+        const newState = initializeAppState(FAMILY_MEMBERS);
+        setAppState(newState);
+        localStorage.removeItem('secretSantaState');
+        resetFlow();
+      } catch (error) {
+        console.error('Failed to reset database:', error);
+        setError('Failed to reset database. Try again later.');
+      } finally {
+        setLoading(false);
+      }
     }
   };
 
@@ -135,6 +180,11 @@ export default function AssignSantas() {
           <h1 className="text-3xl font-bold text-green-800 mb-4">
             🎁 Secret Santa Assignment
           </h1>
+          {loading && (
+            <div className="mb-4 text-blue-600">
+              <p>🔄 Syncing with database...</p>
+            </div>
+          )}
           <Link href="/">
             <Button variant="outline" className="mb-4">
               ← Back to Home
@@ -149,7 +199,7 @@ export default function AssignSantas() {
               <strong>Status:</strong> {appState.completedAssignments.length} of {FAMILY_MEMBERS.length} assignments completed
             </p>
             <p className="text-sm text-blue-600">
-              Available people: {appState.availableReceivers.join(', ') || 'None left!'}
+              People with assignments: {Object.keys(appState.assignments).join(', ') || 'None yet'}
             </p>
           </CardContent>
         </Card>
@@ -159,12 +209,16 @@ export default function AssignSantas() {
             <CardHeader>
               <CardTitle>Who are you?</CardTitle>
               <CardDescription>
-                Enter your name to start the assignment process
+                Enter your name exactly as it appears in the family list below
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
+              <div className="bg-gray-50 p-3 rounded-lg">
+                <p className="text-sm font-medium text-gray-700 mb-2">Family Members:</p>
+                <p className="text-sm text-gray-600">{FAMILY_MEMBERS.join(', ')}</p>
+              </div>
               <Input
-                placeholder="Enter your name"
+                placeholder="Enter your name exactly as shown above"
                 value={userName}
                 onChange={(e) => setUserName(e.target.value)}
                 onKeyPress={(e) => e.key === 'Enter' && handleStartAssignment()}
@@ -216,15 +270,16 @@ export default function AssignSantas() {
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
+              <div className="bg-gray-50 p-3 rounded-lg">
+                <p className="text-sm font-medium text-gray-700 mb-2">Family Members:</p>
+                <p className="text-sm text-gray-600">{FAMILY_MEMBERS.join(', ')}</p>
+              </div>
               <Input
-                placeholder="Enter their name"
+                placeholder="Enter their name exactly as shown above"
                 value={santaName}
                 onChange={(e) => setSantaName(e.target.value)}
                 onKeyPress={(e) => e.key === 'Enter' && handleEnterKnownSanta()}
               />
-              <p className="text-sm text-gray-600">
-                Available people: {appState.availableReceivers.join(', ')}
-              </p>
               {error && <p className="text-red-600 text-sm">{error}</p>}
               <div className="space-y-2">
                 <Button onClick={handleEnterKnownSanta} className="w-full">
@@ -243,12 +298,12 @@ export default function AssignSantas() {
             <CardHeader>
               <CardTitle>Generate Your Secret Santa</CardTitle>
               <CardDescription>
-                Click the button below to randomly assign you a secret santa from the available people.
+                Click the button below to randomly assign you a secret santa from the available family members!
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <p className="text-sm text-gray-600">
-                Available people: {appState.availableReceivers.filter(name => name !== userName).join(', ')}
+                You will be randomly assigned a family member who hasn't been taken yet.
               </p>
               {error && <p className="text-red-600 text-sm">{error}</p>}
               <div className="space-y-2">
@@ -271,7 +326,7 @@ export default function AssignSantas() {
             <CardHeader>
               <CardTitle className="text-green-800">🎉 Assignment Complete!</CardTitle>
               <CardDescription>
-                Remember this person - it's your secret santa!
+                Remember this person - they're your secret santa!
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -284,7 +339,7 @@ export default function AssignSantas() {
               </p>
               <div className="space-y-2">
                 <Button onClick={resetFlow} className="w-full">
-                  Help Another Person
+                  Let Another Family Member Assign their Secret Santa
                 </Button>
                 <Link href="/">
                   <Button variant="outline" className="w-full">

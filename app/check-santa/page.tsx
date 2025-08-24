@@ -6,7 +6,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { AppState } from '@/app/features/santa/types';
+import { FAMILY_MEMBERS } from '@/app/features/santa/constants';
 import { getAssignment } from '@/app/features/santa/logic';
+import { DatabaseService } from '@/lib/database';
 
 export default function CheckSanta() {
   const [appState, setAppState] = useState<AppState | null>(null);
@@ -14,26 +16,50 @@ export default function CheckSanta() {
   const [assignment, setAssignment] = useState<string | null>(null);
   const [error, setError] = useState('');
   const [searched, setSearched] = useState(false);
+  const [loading, setLoading] = useState(false);
 
-  // Load saved state from localStorage on component mount
+  // Load saved state from database on component mount
   useEffect(() => {
-    const saved = localStorage.getItem('secretSantaState');
-    if (saved) {
+    const loadData = async () => {
+      setLoading(true);
       try {
-        const parsedState = JSON.parse(saved);
-        setAppState(parsedState);
-      } catch (e) {
-        console.error('Failed to parse saved state:', e);
-        setError('Failed to load saved data');
+        const savedState = await DatabaseService.loadAppState();
+        if (savedState) {
+          setAppState(savedState);
+        } else {
+          setError('No assignment data found. Please complete the assignment process first.');
+        }
+      } catch (error) {
+        console.error('Failed to load data from database:', error);
+        setError('Failed to load data from database.');
+        // Fallback to localStorage
+        const localData = localStorage.getItem('secretSantaState');
+        if (localData) {
+          try {
+            const parsedState = JSON.parse(localData);
+            setAppState(parsedState);
+            setError(''); // Clear error if local data works
+          } catch (e) {
+            console.error('Failed to parse local data:', e);
+          }
+        }
+      } finally {
+        setLoading(false);
       }
-    } else {
-      setError('No assignment data found. Please complete the assignment process first.');
-    }
+    };
+
+    loadData();
   }, []);
 
   const handleCheckAssignment = () => {
     if (!userName.trim()) {
       setError('Please enter your name');
+      return;
+    }
+
+    // Validate that the user is in the family members list
+    if (!FAMILY_MEMBERS.includes(userName)) {
+      setError(`"${userName}" is not in the family list. Please use the exact name from the list.`);
       return;
     }
 
@@ -49,7 +75,7 @@ export default function CheckSanta() {
       setError('');
     } else {
       setAssignment(null);
-      setError(`No assignment found for "${userName}". Make sure you've completed the assignment process and spelled your name correctly.`);
+      setError(`No assignment found for "${userName}". Make sure you've completed the assignment process first.`);
     }
     
     setSearched(true);
@@ -62,12 +88,13 @@ export default function CheckSanta() {
     setSearched(false);
   };
 
-  if (!appState && !error) {
+  if (!appState && !error && loading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-red-50 to-green-50 p-8">
         <div className="max-w-2xl mx-auto">
           <div className="text-center">
             <h1 className="text-3xl font-bold text-green-800 mb-4">Loading...</h1>
+            <p className="text-blue-600">🔄 Loading data from database...</p>
           </div>
         </div>
       </div>
@@ -106,12 +133,16 @@ export default function CheckSanta() {
             <CardHeader>
               <CardTitle>Who are you?</CardTitle>
               <CardDescription>
-                Enter your name to look up your secret santa assignment
+                Enter your name exactly as it appears in the family list below
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
+              <div className="bg-gray-50 p-3 rounded-lg">
+                <p className="text-sm font-medium text-gray-700 mb-2">Family Members:</p>
+                <p className="text-sm text-gray-600">{FAMILY_MEMBERS.join(', ')}</p>
+              </div>
               <Input
-                placeholder="Enter your name"
+                placeholder="Enter your name exactly as shown above"
                 value={userName}
                 onChange={(e) => setUserName(e.target.value)}
                 onKeyPress={(e) => e.key === 'Enter' && handleCheckAssignment()}
@@ -141,9 +172,7 @@ export default function CheckSanta() {
                 🎄 Happy shopping! 🎄
               </p>
               <div className="space-y-2">
-                <Button onClick={resetSearch} className="w-full" variant="outline">
-                  Look Up Another Person
-                </Button>
+
                 <Link href="/">
                   <Button className="w-full">
                     ← Back to Home
@@ -181,29 +210,6 @@ export default function CheckSanta() {
                     Go to Assignment Page
                   </Button>
                 </Link>
-              </div>
-            </CardContent>
-          </Card>
-        )}
-
-        {/* Show all assignments for debugging/admin purposes */}
-        {appState && Object.keys(appState.assignments).length > 0 && (
-          <Card className="mt-8 border-gray-300">
-            <CardHeader>
-              <CardTitle className="text-gray-700">All Current Assignments</CardTitle>
-              <CardDescription>
-                For family reference (admin view)
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-2">
-                {Object.entries(appState.assignments).map(([giver, receiver]) => (
-                  <div key={giver} className="flex justify-between items-center p-2 bg-gray-50 rounded">
-                    <span className="font-medium">{giver}</span>
-                    <span className="text-gray-600">→</span>
-                    <span className="font-medium">{receiver}</span>
-                  </div>
-                ))}
               </div>
             </CardContent>
           </Card>

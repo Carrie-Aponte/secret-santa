@@ -64,7 +64,7 @@ export default function Home() {
           </Card>
         </div>
 
-        <div className="mt-12 text-center">
+        <div className="mt-12 text-left">
           <Card className="bg-blue-50 border-blue-200">
             <CardContent className="pt-6">
               <p className="text-sm text-blue-800">
@@ -77,13 +77,14 @@ export default function Home() {
                 <br />
                 Enter that person's name to remove them from the available pool. 
                 <br />
+                <br />
                 Those who forgot:
                 <br />
-                *AFTER* everyone who remembers has entered their names, those who forgot can generate new assignments from whoever is left!
+                *AFTER* everyone who remembers has entered their names, generate your new assignments from whoever is left!
                 <br />
                 <br />
                 <br />
-                Then, once everyone has completed the assignment process, you can click on "Check My Assignment" to look up who you're getting a gift for if you forget again!
+                Once everyone has completed the assignment process, you can click on "Check My Assignment" to look up who you're getting a gift for if you forget again!
               </p>
             </CardContent>
           </Card>
