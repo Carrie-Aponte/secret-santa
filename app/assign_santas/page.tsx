@@ -184,11 +184,6 @@ export default function AssignSantas() {
               <p>🔄 Syncing with database...</p>
             </div>
           )}
-          <Link href="/">
-            <Button variant="outline" className="mb-4">
-              ← Back to Home
-            </Button>
-          </Link>
         </div>
 
         {/* Progress Info */}
@@ -418,6 +413,18 @@ export default function AssignSantas() {
             </Button>
           </CardContent>
         </Card> */}
+
+        {/* Back to Home Button - Always visible at bottom */}
+        <div className="mt-8 text-center">
+          <Link href="/">
+            <Button 
+              variant="outline" 
+              className="bg-white hover:bg-gray-50 border-gray-300 text-gray-700 px-6 py-3 text-lg font-medium shadow-md"
+            >
+              ← Back to Home
+            </Button>
+          </Link>
+        </div>
       </div>
     </div>
   );
