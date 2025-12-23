@@ -173,7 +173,8 @@ secret-santa/
 Edit `app/features/santa/constants.ts` to customize family members.
 
 ### Database
-The app uses Supabase with automatic fallback to localStorage. See `VERCEL_DEPLOYMENT.md` for setup instructions.
+The app uses Supabase with automatic fallback to local storage. See `VERCEL_DEPLOYMENT.md` for setup instructions. 
+> **Note** I do not recommend using Supabase for this project. If you can, use Neon instead.
 
 ### Styling
 Built with Tailwind CSS and shadcn/ui. Customize theme in `tailwind.config.js`.
