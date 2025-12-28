@@ -154,23 +154,23 @@ export default function AssignSantas() {
     setError('');
   };
 
-//   const clearAllData = async () => {
-//     if (confirm('Are you sure you want to reset all assignments? This cannot be undone.')) {
-//       setLoading(true);
-//       try {
-//         await DatabaseService.resetAppState();
-//         const newState = initializeAppState(FAMILY_MEMBERS);
-//         setAppState(newState);
-//         localStorage.removeItem('secretSantaState');
-//         resetFlow();
-//       } catch (error) {
-//         console.error('Failed to reset database:', error);
-//         setError('Failed to reset database. Try again later.');
-//       } finally {
-//         setLoading(false);
-//       }
-//     }
-//   };
+   const clearAllData = async () => {
+    if (confirm('Are you sure you want to reset all assignments? This cannot be undone.')) {
+      setLoading(true);
+      try {
+        await DatabaseService.resetAppState();
+        const newState = initializeAppState(FAMILY_MEMBERS);
+        setAppState(newState);
+        localStorage.removeItem('secretSantaState');
+        resetFlow();
+      } catch (error) {
+        console.error('Failed to reset database:', error);
+        setError('Failed to reset database. Try again later.');
+      } finally {
+        setLoading(false);
+      }
+    }
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-red-50 to-green-50 p-4 sm:p-6 lg:p-8">
@@ -399,7 +399,7 @@ export default function AssignSantas() {
         )}
 
         {/* Admin Controls */}
-        {/* <Card className="mt-8 border-gray-300">
+        <Card className="mt-8 border-gray-300">
           <CardHeader>
             <CardTitle className="text-gray-700">Admin Controls</CardTitle>
           </CardHeader>
@@ -412,7 +412,7 @@ export default function AssignSantas() {
               🗑️ Reset All Assignments
             </Button>
           </CardContent>
-        </Card> */}
+        </Card>
 
         {/* Back to Home Button - Always visible at bottom */}
         <div className="mt-8 text-center">
