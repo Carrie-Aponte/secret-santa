@@ -3,6 +3,54 @@
 import { AppState } from './types';
 import { LAST_YEAR_ASSIGNMENTS } from './constants';
 
+// Check if an assignment is invalid (self-assignment or same as last year)
+export function isInvalidAssignment(giver: string, receiver: string): boolean {
+  // Self-assignment is invalid
+  if (giver === receiver) {
+    return true;
+  }
+  
+  // Same as last year is invalid
+  const lastYearSanta = LAST_YEAR_ASSIGNMENTS[giver];
+  if (lastYearSanta && receiver === lastYearSanta) {
+    return true;
+  }
+  
+  return false;
+}
+
+// Check if all remaining unassigned people will still have valid options
+export function wouldAssignmentLeaveEveryoneWithOptions(
+  state: AppState,
+  giver: string,
+  receiver: string
+): boolean {
+  // Simulate making this assignment
+  const newAvailable = state.availableReceivers.filter(r => r !== receiver);
+  const newAssignments = { ...state.assignments, [giver]: receiver };
+  
+  // Find all people who still need assignments
+  const stillNeedAssignments = state.familyMembers.filter(member => 
+    !newAssignments[member]
+  );
+  
+  // For each person who still needs an assignment, 
+  // make sure they have at least one valid option
+  for (const futureGiver of stillNeedAssignments) {
+    const lastYearSanta = LAST_YEAR_ASSIGNMENTS[futureGiver];
+    const validOptionsForThem = newAvailable.filter(option =>
+      option !== futureGiver && option !== lastYearSanta
+    );
+    
+    // If this person would have NO valid options, this assignment is bad
+    if (validOptionsForThem.length === 0) {
+      return false;
+    }
+  }
+  
+  return true; // Everyone still has at least one valid option
+}
+
 export function assignRandomSanta(
   participants: string[],
   available: string[],
@@ -19,80 +67,32 @@ export function assignRandomSanta(
   return assignedSanta || null;
 }
 
-// Check if current assignment state could lead to impossible situation
-export function validateAssignmentPossible(
+// Smart assignment that ensures future assignments remain possible
+export function assignRandomSantaWithLookAhead(
   state: AppState,
-  remainingGivers: string[]
-): boolean {
-  // For each remaining giver, check if they have at least one valid option
-  for (const giver of remainingGivers) {
-    const lastYearSanta = LAST_YEAR_ASSIGNMENTS[giver];
-    const validOptions = state.availableReceivers.filter(receiver => 
-      receiver !== giver && receiver !== lastYearSanta
-    );
-    
-    if (validOptions.length === 0) {
-      return false; // This giver has no valid options
-    }
-  }
-  return true;
-}
-
-// Check if making this specific assignment would cause future problems
-export function wouldAssignmentCauseDeadlock(
-  state: AppState,
-  giver: string,
-  potentialReceiver: string
-): boolean {
-  // Simulate the assignment
-  const simulatedState = {
-    ...state,
-    availableReceivers: state.availableReceivers.filter(r => r !== potentialReceiver),
-    assignments: { ...state.assignments, [giver]: potentialReceiver }
-  };
-  
-  // Check remaining unassigned givers
-  const remainingGivers = state.familyMembers.filter(member => 
-    !simulatedState.assignments[member]
-  );
-  
-  return !validateAssignmentPossible(simulatedState, remainingGivers);
-}
-
-// Smart assignment that avoids creating deadlocks
-export function assignRandomSantaSafely(
-  state: AppState,
-  you: string
+  giver: string
 ): string | null {
-  const lastYearSanta = LAST_YEAR_ASSIGNMENTS[you];
-  const basicAvailable = state.availableReceivers.filter((p) => 
-    p !== you && p !== lastYearSanta
+  const lastYearSanta = LAST_YEAR_ASSIGNMENTS[giver];
+  const basicOptions = state.availableReceivers.filter((p) => 
+    p !== giver && p !== lastYearSanta
   );
   
-  if (basicAvailable.length === 0) return null;
+  if (basicOptions.length === 0) return null;
   
-  // If only one option, check if it would cause problems
-  if (basicAvailable.length === 1) {
-    const onlyOption = basicAvailable[0];
-    if (wouldAssignmentCauseDeadlock(state, you, onlyOption)) {
-      return null; // This assignment would cause problems later
-    }
-    return onlyOption;
-  }
-  
-  // Multiple options - filter out ones that would cause deadlocks
-  const safeOptions = basicAvailable.filter(receiver => 
-    !wouldAssignmentCauseDeadlock(state, you, receiver)
+  // Filter to only options that keep everyone else with valid choices
+  const safeOptions = basicOptions.filter(receiver =>
+    wouldAssignmentLeaveEveryoneWithOptions(state, giver, receiver)
   );
   
-  // If we have safe options, use them
+  // If we have safe options, use one randomly
   if (safeOptions.length > 0) {
     return safeOptions[Math.floor(Math.random() * safeOptions.length)];
   }
   
-  // If no safe options, we have to make a choice that might cause issues
-  // This should be rare with proper constraint checking
-  return basicAvailable[Math.floor(Math.random() * basicAvailable.length)];
+  // If no "safe" options exist, we need to be more careful
+  // This indicates a potential deadlock scenario
+  console.warn(`Warning: No completely safe options for ${giver}, assignment may lead to deadlock`);
+  return null; // Return null instead of proceeding with unsafe options
 }
 
 export function initializeAppState(familyMembers: string[]): AppState {
@@ -120,44 +120,52 @@ export function generateAssignment(
   state: AppState,
   giver: string
 ): { newState: AppState; receiver: string | null; error?: string } {
-  // Use the safe assignment function that checks for deadlocks
-  const receiver = assignRandomSantaSafely(state, giver);
+  const maxAttempts = 50; // Prevent infinite loops
+  let attempts = 0;
   
-  if (!receiver) {
-    // Check if this is due to last-year constraints or just no options
-    const hasAnyOptions = state.availableReceivers.filter(p => p !== giver).length > 0;
+  while (attempts < maxAttempts) {
+    // Use the look-ahead assignment that ensures everyone keeps valid options
+    const receiver = assignRandomSantaWithLookAhead(state, giver);
     
-    if (hasAnyOptions) {
+    if (!receiver) {
+      // No valid options available at all
       const lastYearSanta = LAST_YEAR_ASSIGNMENTS[giver];
-      const assignedCount = Object.keys(state.assignments).length;
-      const totalMembers = state.familyMembers.length;
+      const hasBasicOptions = state.availableReceivers.filter(p => 
+        p !== giver && p !== lastYearSanta
+      ).length > 0;
       
-      if (assignedCount < totalMembers - 2) {
-        // Early in the process - suggest trying different order
+      if (hasBasicOptions) {
         return { 
           newState: state, 
           receiver: null, 
-          error: `Assignment blocked: ${giver} can only get ${lastYearSanta} (same as last year), but this would cause conflicts later. Try assigning ${giver} earlier in the process, or reset and assign people in a different order.`
+          error: `Cannot assign ${giver} - all potential assignments would block future assignments. This indicates a constraint problem that should have been prevented earlier.`
         };
       } else {
-        // Late in the process - this is the edge case we detected
         return { 
           newState: state, 
           receiver: null, 
-          error: `Assignment impossible: ${giver} would get ${lastYearSanta} again (same as last year), but this would create conflicts for remaining assignments. Please reset and try again with a different assignment order.`
+          error: `${giver} has no valid assignment options (would get ${lastYearSanta} again from last year).`
         };
       }
-    } else {
-      return { 
-        newState: state, 
-        receiver: null, 
-        error: 'No available people left to assign!'
-      };
     }
+    
+    // Check if this assignment is invalid (shouldn't happen with proper logic, but safety check)
+    if (isInvalidAssignment(giver, receiver)) {
+      attempts++;
+      continue; // Try again
+    }
+    
+    // Valid assignment found
+    const newState = addKnownAssignment(state, giver, receiver);
+    return { newState, receiver };
   }
   
-  const newState = addKnownAssignment(state, giver, receiver);
-  return { newState, receiver };
+  // If we exhaust all attempts, return error
+  return {
+    newState: state,
+    receiver: null,
+    error: `Failed to generate valid assignment after ${maxAttempts} attempts. Please try again.`
+  };
 }
 
 export function getAssignment(state: AppState, person: string): string | null {
