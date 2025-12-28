@@ -171,3 +171,70 @@ export function generateAssignment(
 export function getAssignment(state: AppState, person: string): string | null {
   return state.assignments[person] || null;
 }
+
+export type VerificationResult = {
+  isValid: boolean;
+  issues: string[];
+  summary: string;
+};
+
+export function verifyAllAssignments(state: AppState): VerificationResult {
+  const issues: string[] = [];
+  
+  // Check if everyone has an assignment
+  const unassignedPeople = state.familyMembers.filter(person => !state.assignments[person]);
+  if (unassignedPeople.length > 0) {
+    issues.push(`Missing assignments for: ${unassignedPeople.join(', ')}`);
+  }
+  
+  // Check each assignment for validity
+  Object.entries(state.assignments).forEach(([giver, receiver]) => {
+    // Check for self-assignment
+    if (giver === receiver) {
+      issues.push(`${giver} is assigned to themselves`);
+    }
+    
+    // Check for repeat from last year
+    const lastYearSanta = LAST_YEAR_ASSIGNMENTS[giver];
+    if (lastYearSanta && receiver === lastYearSanta) {
+      issues.push(`${giver} has the same person as last year (${receiver})`);
+    }
+    
+    // Check if receiver is a valid family member
+    if (!state.familyMembers.includes(receiver)) {
+      issues.push(`${giver} is assigned to ${receiver}, who is not in the family list`);
+    }
+  });
+  
+  // Check for duplicate receivers (two people assigned to the same person)
+  const receivers = Object.values(state.assignments);
+  const duplicateReceivers = receivers.filter((receiver, index) => 
+    receivers.indexOf(receiver) !== index
+  );
+  if (duplicateReceivers.length > 0) {
+    const uniqueDuplicates = [...new Set(duplicateReceivers)];
+    uniqueDuplicates.forEach(receiver => {
+      const givers = Object.entries(state.assignments)
+        .filter(([, r]) => r === receiver)
+        .map(([giver]) => giver);
+      issues.push(`${receiver} is assigned to multiple people: ${givers.join(', ')}`);
+    });
+  }
+  
+  const isValid = issues.length === 0;
+  const totalAssignments = Object.keys(state.assignments).length;
+  const totalFamily = state.familyMembers.length;
+  
+  let summary: string;
+  if (isValid) {
+    summary = `✅ All ${totalFamily} assignments are valid! Everyone has a unique Secret Santa that's different from last year.`;
+  } else {
+    summary = `❌ Found ${issues.length} issue(s) with the assignments (${totalAssignments}/${totalFamily} people assigned).`;
+  }
+  
+  return {
+    isValid,
+    issues,
+    summary
+  };
+}

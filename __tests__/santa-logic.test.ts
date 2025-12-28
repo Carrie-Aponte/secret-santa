@@ -14,7 +14,8 @@ import {
   initializeAppState,
   addKnownAssignment,
   wouldAssignmentLeaveEveryoneWithOptions,
-  assignRandomSantaWithLookAhead
+  assignRandomSantaWithLookAhead,
+  verifyAllAssignments
 } from '../app/features/santa/logic';
 import { FAMILY_MEMBERS, LAST_YEAR_ASSIGNMENTS } from '../app/features/santa/constants';
 import { AppState } from '../app/features/santa/types';
@@ -399,6 +400,106 @@ describe('Secret Santa Logic Tests', () => {
         const failureRate = ((iterations - successfulRuns) / iterations) * 100;
         console.log(`${iterations - successfulRuns} runs failed (${failureRate.toFixed(1)}% failure rate) - this is acceptable if under 10%`);
       }
+    });
+  });
+
+  describe('Assignment Verification Tests', () => {
+    test('should verify valid complete assignments', () => {
+      const state = initializeAppState(FAMILY_MEMBERS);
+      
+      // Create a valid set of assignments
+      state.assignments = {
+        'Alan': 'Rosa',
+        'Rosa': 'Nhic', 
+        'Nhic': 'Carrie',
+        'Carrie': 'Ethan',
+        'Chris': 'Camila',
+        'Camila': 'Alan',
+        'Ethan': 'Chris'
+      };
+      
+      const result = verifyAllAssignments(state);
+      expect(result.isValid).toBe(true);
+      expect(result.issues).toHaveLength(0);
+      expect(result.summary).toContain('✅');
+      expect(result.summary).toContain('All 7 assignments are valid');
+    });
+
+    test('should detect missing assignments', () => {
+      const state = initializeAppState(FAMILY_MEMBERS);
+      
+      // Only assign some people
+      state.assignments = {
+        'Alan': 'Rosa',
+        'Rosa': 'Nhic'
+      };
+      
+      const result = verifyAllAssignments(state);
+      expect(result.isValid).toBe(false);
+      expect(result.issues).toContain('Missing assignments for: Nhic, Camila, Chris, Carrie, Ethan');
+    });
+
+    test('should detect self-assignments', () => {
+      const state = initializeAppState(FAMILY_MEMBERS);
+      
+      state.assignments = {
+        'Alan': 'Alan', // Self-assignment
+        'Rosa': 'Nhic'
+      };
+      
+      const result = verifyAllAssignments(state);
+      expect(result.isValid).toBe(false);
+      expect(result.issues).toContain('Alan is assigned to themselves');
+    });
+
+    test('should detect repeat assignments from last year', () => {
+      const state = initializeAppState(FAMILY_MEMBERS);
+      
+      state.assignments = {
+        'Alan': 'Carrie', // Same as last year according to LAST_YEAR_ASSIGNMENTS
+        'Carrie': 'Chris', // Same as last year
+        'Rosa': 'Nhic'
+      };
+      
+      const result = verifyAllAssignments(state);
+      expect(result.isValid).toBe(false);
+      expect(result.issues).toContain('Alan has the same person as last year (Carrie)');
+      expect(result.issues).toContain('Carrie has the same person as last year (Chris)');
+    });
+
+    test('should detect duplicate receivers', () => {
+      const state = initializeAppState(FAMILY_MEMBERS);
+      
+      state.assignments = {
+        'Alan': 'Rosa',
+        'Nhic': 'Rosa', // Duplicate - both Alan and Nhic assigned to Rosa
+        'Carrie': 'Ethan'
+      };
+      
+      const result = verifyAllAssignments(state);
+      expect(result.isValid).toBe(false);
+      expect(result.issues).toContain('Rosa is assigned to multiple people: Alan, Nhic');
+    });
+
+    test('should detect assignments to people not in family list', () => {
+      const state = initializeAppState(FAMILY_MEMBERS);
+      
+      state.assignments = {
+        'Alan': 'NotInFamily',
+        'Rosa': 'Nhic'
+      };
+      
+      const result = verifyAllAssignments(state);
+      expect(result.isValid).toBe(false);
+      expect(result.issues).toContain('Alan is assigned to NotInFamily, who is not in the family list');
+    });
+
+    test('should handle empty assignment state', () => {
+      const state = initializeAppState(FAMILY_MEMBERS);
+      
+      const result = verifyAllAssignments(state);
+      expect(result.isValid).toBe(false);
+      expect(result.issues).toContain('Missing assignments for: Rosa, Alan, Nhic, Camila, Chris, Carrie, Ethan');
     });
   });
 });
