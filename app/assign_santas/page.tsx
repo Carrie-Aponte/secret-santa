@@ -261,7 +261,7 @@ export default function AssignSantas() {
                   onClick={() => handleKnowsSanta(false)}
                   className="bg-red-600 hover:bg-red-700"
                 >
-                  No, I forgot
+                  No, I don't know
                 </Button>
               </div>
               <Button variant="outline" onClick={resetFlow} className="w-full">
