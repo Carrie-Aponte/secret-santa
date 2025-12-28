@@ -9,7 +9,8 @@ import { FAMILY_MEMBERS } from '@/app/features/santa/constants';
 import { 
   initializeAppState, 
   addKnownAssignment, 
-  generateAssignment
+  generateAssignment,
+  isInvalidAssignment
 } from '@/app/features/santa/logic';
 import { DatabaseService } from '@/lib/database';
 
@@ -24,6 +25,7 @@ export default function AssignSantas() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [showPrivacyWarning, setShowPrivacyWarning] = useState(false);
+  const [tempAssignment, setTempAssignment] = useState<{giver: string, receiver: string} | null>(null);
 
   // Load saved state from database on component mount
   useEffect(() => {
@@ -106,8 +108,13 @@ export default function AssignSantas() {
   };
 
     const handleManualAssignment = (santaName: string, isKnownAssignment = false) => {
-    if (santaName === userName) {
-      setError('You cannot be your own secret santa!');
+    // Check for invalid assignments using our validation function
+    if (isInvalidAssignment(userName, santaName)) {
+      if (santaName === userName) {
+        setError('You cannot be your own secret santa!');
+      } else {
+        setError(`You cannot have ${santaName} again - you had them last year!`);
+      }
       return;
     }
 
@@ -133,17 +140,26 @@ export default function AssignSantas() {
   };
 
   const handleGenerateSanta = () => {
-    const { newState, receiver } = generateAssignment(appState, userName);
+    setError(''); // Clear any previous errors
+    setLoading(true); // Show loading state during generation
     
-    if (!receiver) {
-      setError('No available people left to assign! This shouldn&apos;t happen.');
-      return;
-    }
+    // Use setTimeout to allow UI to update with loading state
+    setTimeout(() => {
+      const { receiver, error } = generateAssignment(appState, userName);
+      
+      if (!receiver) {
+        setError(error || 'No available people left to assign! This shouldn&apos;t happen.');
+        setLoading(false);
+        return;
+      }
 
-    setAppState(newState);
-    setAssignedSanta(receiver);
-    setError('');
-    setShowPrivacyWarning(true);
+      // Don't save to state yet - store as temp assignment until viewed
+      setTempAssignment({giver: userName, receiver});
+      setAssignedSanta(receiver);
+      setError(''); // Clear any previous errors
+      setLoading(false);
+      setShowPrivacyWarning(true);
+    }, 100); // Small delay to show loading state
   };
 
   const resetFlow = () => {
@@ -152,6 +168,7 @@ export default function AssignSantas() {
     setSantaName('');
     setAssignedSanta(null);
     setError('');
+    setTempAssignment(null);
   };
 
 //   const clearAllData = async () => {
@@ -261,7 +278,7 @@ export default function AssignSantas() {
                   onClick={() => handleKnowsSanta(false)}
                   className="bg-red-600 hover:bg-red-700"
                 >
-                  No, I forgot
+                  No, I don&apos;t know
                 </Button>
               </div>
               <Button variant="outline" onClick={resetFlow} className="w-full">
@@ -325,15 +342,26 @@ export default function AssignSantas() {
               <p className="text-sm text-gray-600">
                 You will be randomly assigned a family member who hasn&apos;t been taken yet.
               </p>
+              {loading && (
+                <p className="text-blue-600 text-sm">
+                  🎲 Generating your assignment...
+                </p>
+              )}
               {error && <p className="text-red-600 text-sm">{error}</p>}
               <div className="space-y-2">
                 <Button 
                   onClick={handleGenerateSanta} 
                   className="w-full bg-green-600 hover:bg-green-700"
+                  disabled={loading}
                 >
-                  🎲 Generate My Secret Santa!
+                  {loading ? '🔄 Generating...' : '🎲 Generate My Secret Santa!'}
                 </Button>
-                <Button variant="outline" onClick={() => setCurrentStep('knows-santa')} className="w-full">
+                <Button 
+                  variant="outline" 
+                  onClick={() => setCurrentStep('knows-santa')} 
+                  className="w-full"
+                  disabled={loading}
+                >
                   ← Go Back
                 </Button>
               </div>
@@ -356,6 +384,12 @@ export default function AssignSantas() {
                 </p>
                 <Button 
                   onClick={() => {
+                    // Only save the assignment when they actually view it
+                    if (tempAssignment) {
+                      const newState = addKnownAssignment(appState, tempAssignment.giver, tempAssignment.receiver);
+                      setAppState(newState);
+                      setTempAssignment(null);
+                    }
                     setShowPrivacyWarning(false);
                     setCurrentStep('complete');
                   }}
