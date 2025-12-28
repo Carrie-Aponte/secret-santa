@@ -166,11 +166,8 @@ describe('Secret Santa Logic Tests', () => {
 
   describe('Look-ahead Algorithm Tests', () => {
     test('should use look-ahead to prevent future assignment problems', () => {
-      let state = initializeAppState(['A', 'B', 'C']);
-      
-      // Mock last year assignments that would create constraints
-      const originalAssignments = { ...LAST_YEAR_ASSIGNMENTS };
-      
+      const state = initializeAppState(['A', 'B', 'C']);
+            
       // Test that the look-ahead function exists and can be called
       const result = assignRandomSantaWithLookAhead(state, 'A');
       expect(typeof result === 'string' || result === null).toBe(true);
@@ -239,7 +236,7 @@ describe('Secret Santa Logic Tests', () => {
         for (const person of assignmentOrder) {
           if (state.assignments[person]) continue; // Already assigned
           
-          const { newState, receiver, error } = generateAssignment(state, person);
+          const { newState, receiver } = generateAssignment(state, person);
           
           if (receiver) {
             state = newState;
