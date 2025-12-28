@@ -155,9 +155,9 @@ export function generateAssignment(
       continue; // Try again
     }
     
-    // Valid assignment found
-    const newState = addKnownAssignment(state, giver, receiver);
-    return { newState, receiver };
+    // Valid assignment found - return the receiver without modifying state yet
+    // The UI will save it only when the user views their assignment
+    return { newState: state, receiver };
   }
   
   // If we exhaust all attempts, return error
@@ -220,7 +220,7 @@ export function verifyAllAssignments(state: AppState): VerificationResult {
       issues.push(`${receiver} is assigned to multiple people: ${givers.join(', ')}`);
     });
   }
-  
+
   const isValid = issues.length === 0;
   const totalAssignments = Object.keys(state.assignments).length;
   const totalFamily = state.familyMembers.length;

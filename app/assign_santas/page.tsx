@@ -25,6 +25,7 @@ export default function AssignSantas() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [showPrivacyWarning, setShowPrivacyWarning] = useState(false);
+  const [tempAssignment, setTempAssignment] = useState<{giver: string, receiver: string} | null>(null);
 
   // Load saved state from database on component mount
   useEffect(() => {
@@ -152,7 +153,8 @@ export default function AssignSantas() {
         return;
       }
 
-      setAppState(newState);
+      // Don't save to state yet - store as temp assignment until viewed
+      setTempAssignment({giver: userName, receiver});
       setAssignedSanta(receiver);
       setError(''); // Clear any previous errors
       setLoading(false);
@@ -166,6 +168,7 @@ export default function AssignSantas() {
     setSantaName('');
     setAssignedSanta(null);
     setError('');
+    setTempAssignment(null);
   };
 
 //   const clearAllData = async () => {
@@ -381,6 +384,12 @@ export default function AssignSantas() {
                 </p>
                 <Button 
                   onClick={() => {
+                    // Only save the assignment when they actually view it
+                    if (tempAssignment) {
+                      const newState = addKnownAssignment(appState, tempAssignment.giver, tempAssignment.receiver);
+                      setAppState(newState);
+                      setTempAssignment(null);
+                    }
                     setShowPrivacyWarning(false);
                     setCurrentStep('complete');
                   }}
