@@ -145,7 +145,7 @@ export default function AssignSantas() {
     
     // Use setTimeout to allow UI to update with loading state
     setTimeout(() => {
-      const { newState, receiver, error } = generateAssignment(appState, userName);
+      const { receiver, error } = generateAssignment(appState, userName);
       
       if (!receiver) {
         setError(error || 'No available people left to assign! This shouldn&apos;t happen.');
