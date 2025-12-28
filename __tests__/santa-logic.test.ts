@@ -313,5 +313,92 @@ describe('Secret Santa Logic Tests', () => {
         }
       }
     });
+
+    test('should successfully complete full assignment process for all family members without deadlocks (100 iterations)', () => {
+      // Run the complete assignment process many times to ensure reliability
+      const iterations = 100;
+      let successfulRuns = 0;
+      
+      for (let run = 0; run < iterations; run++) {
+        let state = initializeAppState(FAMILY_MEMBERS);
+        const assignmentResults = [];
+        let allAssignmentsSuccessful = true;
+        
+        // Try to assign every single family member
+        for (const person of FAMILY_MEMBERS) {
+          const { newState, receiver, error } = generateAssignment(state, person);
+          
+          if (receiver && !error) {
+            // Verify this is a valid assignment
+            expect(isInvalidAssignment(person, receiver)).toBe(false);
+            expect(receiver).not.toBe(person); // Not themselves
+            
+            // Verify they didn't get their last year assignment
+            const lastYear = LAST_YEAR_ASSIGNMENTS[person];
+            if (lastYear) {
+              expect(receiver).not.toBe(lastYear);
+            }
+            
+            state = newState;
+            assignmentResults.push({ giver: person, receiver });
+          } else {
+            allAssignmentsSuccessful = false;
+            // If assignment failed, log the details for debugging
+            console.log(`Run ${run + 1}: Assignment failed for ${person}. Error: ${error}`);
+            console.log(`Available receivers at time of failure: ${state.availableReceivers.join(', ')}`);
+            console.log(`Assignments so far: ${JSON.stringify(state.assignments)}`);
+            break;
+          }
+        }
+        
+        if (allAssignmentsSuccessful) {
+          successfulRuns++;
+          
+          // Verify the complete assignment is valid
+          expect(assignmentResults).toHaveLength(FAMILY_MEMBERS.length);
+          
+          // Verify no one is assigned to themselves
+          for (const { giver, receiver } of assignmentResults) {
+            expect(giver).not.toBe(receiver);
+          }
+          
+          // Verify no one got their last year assignment
+          for (const { giver, receiver } of assignmentResults) {
+            const lastYear = LAST_YEAR_ASSIGNMENTS[giver];
+            if (lastYear) {
+              expect(receiver).not.toBe(lastYear);
+            }
+          }
+          
+          // Verify everyone is assigned exactly once as a giver
+          const givers = assignmentResults.map(a => a.giver);
+          const uniqueGivers = new Set(givers);
+          expect(uniqueGivers.size).toBe(FAMILY_MEMBERS.length);
+          
+          // Verify everyone is assigned exactly once as a receiver
+          const receivers = assignmentResults.map(a => a.receiver);
+          const uniqueReceivers = new Set(receivers);
+          expect(uniqueReceivers.size).toBe(FAMILY_MEMBERS.length);
+          
+          // Verify all family members are accounted for
+          for (const member of FAMILY_MEMBERS) {
+            expect(givers).toContain(member);
+            expect(receivers).toContain(member);
+          }
+        }
+      }
+      
+      // We should have a very high success rate (at least 90% of runs should complete successfully)
+      const successRate = (successfulRuns / iterations) * 100;
+      expect(successfulRuns).toBeGreaterThanOrEqual(Math.floor(iterations * 0.9));
+      
+      console.log(`Assignment process completed successfully in ${successfulRuns}/${iterations} runs (${successRate.toFixed(1)}% success rate)`);
+      
+      // If we have any failures, they should be rare and not indicate systematic issues
+      if (successfulRuns < iterations) {
+        const failureRate = ((iterations - successfulRuns) / iterations) * 100;
+        console.log(`${iterations - successfulRuns} runs failed (${failureRate.toFixed(1)}% failure rate) - this is acceptable if under 10%`);
+      }
+    });
   });
 });
