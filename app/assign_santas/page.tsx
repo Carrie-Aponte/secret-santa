@@ -133,16 +133,16 @@ export default function AssignSantas() {
   };
 
   const handleGenerateSanta = () => {
-    const { newState, receiver } = generateAssignment(appState, userName);
+    const { newState, receiver, error } = generateAssignment(appState, userName);
     
     if (!receiver) {
-      setError('No available people left to assign! This shouldn&apos;t happen.');
+      setError(error || 'No available people left to assign! This shouldn&apos;t happen.');
       return;
     }
 
     setAppState(newState);
     setAssignedSanta(receiver);
-    setError('');
+    setError(''); // Clear any previous errors
     setShowPrivacyWarning(true);
   };
 
