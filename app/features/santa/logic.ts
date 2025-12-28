@@ -1,13 +1,17 @@
 // here lives the basic app logic (assignSanta, isAvailable, etc)
 
 import { AppState } from './types';
+import { LAST_YEAR_ASSIGNMENTS } from './constants';
 
 export function assignRandomSanta(
   participants: string[],
   available: string[],
   you: string
 ): string | null {
-  const availablePool = available.filter((p) => p !== you);
+  const lastYearSanta = LAST_YEAR_ASSIGNMENTS[you];
+  const availablePool = available.filter((p) => 
+    p !== you && p !== lastYearSanta
+  );
   if (availablePool.length === 0) return null;
   
   const assignedSanta =
