@@ -1,10 +1,40 @@
 'use client';
 
 import Link from 'next/link';
+import { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { DatabaseService } from '@/lib/database';
+import { verifyAllAssignments, VerificationResult } from '@/app/features/santa/logic';
+import { initializeAppState } from '@/app/features/santa/logic';
+import { FAMILY_MEMBERS } from '@/app/features/santa/constants';
 
 export default function Home() {
+  const [verificationResult, setVerificationResult] = useState<VerificationResult | null>(null);
+  const [isVerifying, setIsVerifying] = useState(false);
+
+  const handleVerification = async () => {
+    setIsVerifying(true);
+    setVerificationResult(null);
+    
+    try {
+      // Load current state from database
+      const appState = await DatabaseService.loadAppState() || initializeAppState(FAMILY_MEMBERS);
+      
+      // Verify the assignments
+      const result = verifyAllAssignments(appState);
+      setVerificationResult(result);
+    } catch (error) {
+      console.error('Error during verification:', error);
+      setVerificationResult({
+        isValid: false,
+        issues: ['Failed to load assignment data from database'],
+        summary: '❌ Could not verify assignments - database error'
+      });
+    } finally {
+      setIsVerifying(false);
+    }
+  };
   return (
     <div className="min-h-screen bg-gradient-to-br from-red-50 to-green-50 p-4 sm:p-6 lg:p-8">
       <div className="max-w-4xl mx-auto">
@@ -17,7 +47,7 @@ export default function Home() {
           </p>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-8">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-8">
           <Card className="border-2 border-red-200 hover:border-red-300 transition-colors">
             <CardHeader>
               <CardTitle className="text-lg sm:text-xl text-red-700 flex items-center gap-2">
@@ -60,6 +90,49 @@ export default function Home() {
                   Check My Assignment
                 </Button>
               </Link>
+            </CardContent>
+          </Card>
+
+          <Card className="border-2 border-blue-200 hover:border-blue-300 transition-colors">
+            <CardHeader>
+              <CardTitle className="text-lg sm:text-xl text-blue-700 flex items-center gap-2">
+                (3) ✅ Verify Assignments
+              </CardTitle>
+              <CardDescription>
+                Check that all assignments are valid and complete
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <p className="text-sm text-gray-600 mb-4">
+                Verify that everyone has a Secret Santa assigned, no one got themselves, and nobody has the same person as last year.
+              </p>
+              <Button 
+                onClick={handleVerification}
+                disabled={isVerifying}
+                className="w-full bg-blue-600 hover:bg-blue-700 text-base py-3"
+              >
+                {isVerifying ? 'Checking...' : 'Verify All Assignments'}
+              </Button>
+              
+              {verificationResult && (
+                <div className={`mt-4 p-3 rounded-md border ${
+                  verificationResult.isValid 
+                    ? 'bg-green-50 border-green-200 text-green-800' 
+                    : 'bg-red-50 border-red-200 text-red-800'
+                }`}>
+                  <div className="font-medium text-sm mb-2">
+                    {verificationResult.summary}
+                  </div>
+                  {verificationResult.issues.length > 0 && (
+                    <div className="text-xs space-y-1">
+                      <div className="font-medium">Issues found:</div>
+                      {verificationResult.issues.map((issue, index) => (
+                        <div key={index} className="ml-2">• {issue}</div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
             </CardContent>
           </Card>
         </div>
